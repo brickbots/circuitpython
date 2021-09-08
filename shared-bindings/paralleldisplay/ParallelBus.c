@@ -24,7 +24,7 @@
  * THE SOFTWARE.
  */
 
-#include "shared-bindings/displayio/ParallelBus.h"
+#include "shared-bindings/paralleldisplay/ParallelBus.h"
 
 #include <stdint.h>
 
@@ -42,7 +42,7 @@
 //|     protocol may be refered to as 8080-I Series Parallel Interface in datasheets. It doesn't handle
 //|     display initialization."""
 //|
-//|     def __init__(self, *, data0: microcontroller.Pin, command: microcontroller.Pin, chip_select: microcontroller.Pin, write: microcontroller.Pin, read: microcontroller.Pin, reset: microcontroller.Pin) -> None:
+//|     def __init__(self, *, data0: microcontroller.Pin, command: microcontroller.Pin, chip_select: microcontroller.Pin, write: microcontroller.Pin, read: microcontroller.Pin, reset: microcontroller.Pin, frequency: int = 30_000_000) -> None:
 //|         """Create a ParallelBus object associated with the given pins. The bus is inferred from data0
 //|         by implying the next 7 additional pins on a given GPIO port.
 //|
@@ -56,10 +56,11 @@
 //|         :param microcontroller.Pin chip_select: Chip select pin
 //|         :param microcontroller.Pin write: Write pin
 //|         :param microcontroller.Pin read: Read pin
-//|         :param microcontroller.Pin reset: Reset pin"""
+//|         :param microcontroller.Pin reset: Reset pin
+//|         :param int frequency: The communication frequency in Hz for the display on the bus"""
 //|         ...
 //|
-STATIC mp_obj_t displayio_parallelbus_make_new(const mp_obj_type_t *type, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
+STATIC mp_obj_t paralleldisplay_parallelbus_make_new(const mp_obj_type_t *type, size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     enum { ARG_data0, ARG_command, ARG_chip_select, ARG_write, ARG_read, ARG_reset, ARG_frequency };
     static const mp_arg_t allowed_args[] = {
         { MP_QSTR_data0, MP_ARG_OBJ | MP_ARG_KW_ONLY | MP_ARG_REQUIRED },
@@ -80,10 +81,10 @@ STATIC mp_obj_t displayio_parallelbus_make_new(const mp_obj_type_t *type, size_t
     mcu_pin_obj_t *read = validate_obj_is_free_pin(args[ARG_read].u_obj);
     mcu_pin_obj_t *reset = validate_obj_is_free_pin(args[ARG_reset].u_obj);
 
-    displayio_parallelbus_obj_t *self = &allocate_display_bus_or_raise()->parallel_bus;
-    self->base.type = &displayio_parallelbus_type;
+    paralleldisplay_parallelbus_obj_t *self = &allocate_display_bus_or_raise()->parallel_bus;
+    self->base.type = &paralleldisplay_parallelbus_type;
 
-    common_hal_displayio_parallelbus_construct(self, data0, command, chip_select, write, read, reset, args[ARG_frequency].u_int);
+    common_hal_paralleldisplay_parallelbus_construct(self, data0, command, chip_select, write, read, reset, args[ARG_frequency].u_int);
     return self;
 }
 
@@ -93,22 +94,22 @@ STATIC mp_obj_t displayio_parallelbus_make_new(const mp_obj_type_t *type, size_t
 //|         ...
 //|
 
-STATIC mp_obj_t displayio_parallelbus_obj_reset(mp_obj_t self_in) {
-    displayio_parallelbus_obj_t *self = self_in;
+STATIC mp_obj_t paralleldisplay_parallelbus_obj_reset(mp_obj_t self_in) {
+    paralleldisplay_parallelbus_obj_t *self = self_in;
 
-    if (!common_hal_displayio_parallelbus_reset(self)) {
+    if (!common_hal_paralleldisplay_parallelbus_reset(self)) {
         mp_raise_RuntimeError(translate("no reset pin available"));
     }
     return mp_const_none;
 }
-MP_DEFINE_CONST_FUN_OBJ_1(displayio_parallelbus_reset_obj, displayio_parallelbus_obj_reset);
+MP_DEFINE_CONST_FUN_OBJ_1(paralleldisplay_parallelbus_reset_obj, paralleldisplay_parallelbus_obj_reset);
 
 //|     def send(self, command: int, data: ReadableBuffer) -> None:
 //|         """Sends the given command value followed by the full set of data. Display state, such as
 //|         vertical scroll, set via ``send`` may or may not be reset once the code is done."""
 //|         ...
 //|
-STATIC mp_obj_t displayio_parallelbus_obj_send(mp_obj_t self, mp_obj_t command_obj, mp_obj_t data_obj) {
+STATIC mp_obj_t paralleldisplay_parallelbus_obj_send(mp_obj_t self, mp_obj_t command_obj, mp_obj_t data_obj) {
     mp_int_t command_int = MP_OBJ_SMALL_INT_VALUE(command_obj);
     if (!mp_obj_is_small_int(command_obj) || command_int > 255 || command_int < 0) {
         mp_raise_ValueError(translate("Command must be an int between 0 and 255"));
@@ -118,26 +119,26 @@ STATIC mp_obj_t displayio_parallelbus_obj_send(mp_obj_t self, mp_obj_t command_o
     mp_get_buffer_raise(data_obj, &bufinfo, MP_BUFFER_READ);
 
     // Wait for display bus to be available.
-    while (!common_hal_displayio_parallelbus_begin_transaction(self)) {
+    while (!common_hal_paralleldisplay_parallelbus_begin_transaction(self)) {
         RUN_BACKGROUND_TASKS;
     }
-    common_hal_displayio_parallelbus_send(self, DISPLAY_COMMAND, CHIP_SELECT_UNTOUCHED, &command, 1);
-    common_hal_displayio_parallelbus_send(self, DISPLAY_DATA, CHIP_SELECT_UNTOUCHED, ((uint8_t *)bufinfo.buf), bufinfo.len);
-    common_hal_displayio_parallelbus_end_transaction(self);
+    common_hal_paralleldisplay_parallelbus_send(self, DISPLAY_COMMAND, CHIP_SELECT_UNTOUCHED, &command, 1);
+    common_hal_paralleldisplay_parallelbus_send(self, DISPLAY_DATA, CHIP_SELECT_UNTOUCHED, ((uint8_t *)bufinfo.buf), bufinfo.len);
+    common_hal_paralleldisplay_parallelbus_end_transaction(self);
 
     return mp_const_none;
 }
-MP_DEFINE_CONST_FUN_OBJ_3(displayio_parallelbus_send_obj, displayio_parallelbus_obj_send);
+MP_DEFINE_CONST_FUN_OBJ_3(paralleldisplay_parallelbus_send_obj, paralleldisplay_parallelbus_obj_send);
 
-STATIC const mp_rom_map_elem_t displayio_parallelbus_locals_dict_table[] = {
-    { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&displayio_parallelbus_reset_obj) },
-    { MP_ROM_QSTR(MP_QSTR_send), MP_ROM_PTR(&displayio_parallelbus_send_obj) },
+STATIC const mp_rom_map_elem_t paralleldisplay_parallelbus_locals_dict_table[] = {
+    { MP_ROM_QSTR(MP_QSTR_reset), MP_ROM_PTR(&paralleldisplay_parallelbus_reset_obj) },
+    { MP_ROM_QSTR(MP_QSTR_send), MP_ROM_PTR(&paralleldisplay_parallelbus_send_obj) },
 };
-STATIC MP_DEFINE_CONST_DICT(displayio_parallelbus_locals_dict, displayio_parallelbus_locals_dict_table);
+STATIC MP_DEFINE_CONST_DICT(paralleldisplay_parallelbus_locals_dict, paralleldisplay_parallelbus_locals_dict_table);
 
-const mp_obj_type_t displayio_parallelbus_type = {
+const mp_obj_type_t paralleldisplay_parallelbus_type = {
     { &mp_type_type },
     .name = MP_QSTR_ParallelBus,
-    .make_new = displayio_parallelbus_make_new,
-    .locals_dict = (mp_obj_dict_t *)&displayio_parallelbus_locals_dict,
+    .make_new = paralleldisplay_parallelbus_make_new,
+    .locals_dict = (mp_obj_dict_t *)&paralleldisplay_parallelbus_locals_dict,
 };
